@@ -371,6 +371,10 @@ runListT (ListT m) = do
 > import List.Transformer (fold)
 >
 > purely fold :: Monad m => Fold a b -> ListT m a -> m b
+
+    ... but you can also use the `fold` function directly:
+
+> fold (+) 0 id :: Num a => ListT m a -> m a
 -}
 fold :: Monad m => (x -> a -> x) -> x -> (x -> b) -> ListT m a -> m b
 fold step begin done l = go begin l
@@ -388,6 +392,8 @@ fold step begin done l = go begin l
 > import List.Transformer (fold)
 >
 > impurely fold :: Monad m => FoldM m a b -> ListT m a -> m b
+
+    ... but you can also use the `foldM` function directly.
 -}
 foldM :: Monad m => (x -> a -> m x) -> m x -> (x -> m b) -> ListT m a -> m b
 foldM step begin done l0 = do
