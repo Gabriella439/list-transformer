@@ -2,25 +2,12 @@ name:                list-transformer
 version:             1.0.0
 synopsis:            List monad transformer
 description:         This library provides a list monad transformer that
-                     enriches lists with effects.  This type obeys all the
-                     relevant laws (including the monad laws, unlike
-                     "Control.Monad.Trans.List") and streams efficiently in
+                     enriches lists with effects and streams efficiently in
                      constant space.
                      .
                      This library also has an extensive tutorial in the
                      "List.Transformer" module which explains the motivation
                      behind this type and how to use the type fluently.
-                     .
-                     This is similar to the @list-t@ library except making a few
-                     different design decisions, such as:
-                     .
-                     * a smaller dependency graph
-                     .
-                     * no new type classes
-                     .
-                     * some different instances
-                     .
-                     * no utilities that buffer list elements
 homepage:            https://github.com/Gabriel439/Haskell-List-Transformer-Library
 license:             BSD3
 license-file:        LICENSE
