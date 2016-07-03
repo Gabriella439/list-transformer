@@ -11,7 +11,7 @@
 
 > -- Every `ListT` begins with an outermost effect (the `m`)
 > newtype ListT m a = ListT { next :: m (Step m a) }
-> 
+>
 >
 > -- The return value of that effect is either
 > -- * Cons: a new list element followed by the rest of the list
@@ -48,7 +48,7 @@
 
     Combining @stdin@ and @stdout@ forwards lines one-by-one from standard input
     to standard output:
-    
+
 > main :: IO ()
 > main = stdout stdin
 
@@ -103,7 +103,7 @@
 
 > (>>=) :: ListT IO a -> (a -> ListT IO b) -> ListT IO b
 
-    For example, suppose you want to a build a `ListT` with three elements and
+    For example, suppose you want to build a `ListT` with three elements and
     no effects.  You could just write:
 
 > pure 1 <|> pure 2 <|> pure 3 :: ListT IO Int
