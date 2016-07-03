@@ -196,10 +196,9 @@ import Data.Traversable (Traversable)
 #endif
 import Control.Monad (MonadPlus(..))
 import Control.Monad.Error.Class (MonadError(..))
-import Control.Monad.IO.Class (MonadIO(..))
 import Control.Monad.State.Class (MonadState(..))
 import Control.Monad.Reader.Class (MonadReader(..))
-import Control.Monad.Trans.Class (MonadTrans(..))
+import Control.Monad.Trans (MonadTrans(..), MonadIO(..))
 
 import qualified Data.Foldable
 
