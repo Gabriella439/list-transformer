@@ -79,7 +79,7 @@
     You can even use list comprehension syntax if you enable the
     @MonadComprehensions@ language extension:
 
-> stdout strings = runListT [ r | string <- strings, r <- liftIO (putStrLn str) ]
+> stdout strings = runListT [ r | str <- strings, r <- liftIO (putStrLn str) ]
 
     The most important operations that you should familiarize yourself with are:
 
