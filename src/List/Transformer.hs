@@ -175,6 +175,10 @@ module List.Transformer
     , fold
     , foldM
     , select
+    , take
+    , drop
+    , unfold
+    , zip
 
       -- * Step
     , Step(..)
@@ -199,8 +203,12 @@ import Control.Monad.Error.Class (MonadError(..))
 import Control.Monad.State.Class (MonadState(..))
 import Control.Monad.Reader.Class (MonadReader(..))
 import Control.Monad.Trans (MonadTrans(..), MonadIO(..))
+import Prelude hiding (drop, take, zip)
 
 import qualified Data.Foldable
+
+-- $setup
+-- >>> :set -XNoMonomorphismRestriction
 
 {-| This is like a list except that you can interleave effects between each list
     element.  For example:
@@ -419,6 +427,78 @@ select :: (Foldable f, Alternative m) => f a -> m a
 select = Data.Foldable.foldr cons empty
   where
     cons x xs = pure x <|> xs
+
+
+-- | @take n xs@ takes @n@ elements from the head of @xs@.
+--
+-- >>> let list xs = do x <- select xs; liftIO (print (show x)); return x
+-- >>> let sum = fold (+) 0 id
+-- >>> sum (take 2 (list [5,4,3,2,1]))
+-- "5"
+-- "4"
+-- 9
+take :: Monad m => Int -> ListT m a -> ListT m a
+take n l
+    | n <= 0    = empty
+    | otherwise = ListT (do
+        s <- next l
+        case s of
+            Cons a l' -> return (Cons a (take (n-1) l'))
+            Nil       -> return Nil)
+
+-- | @drop n xs@ drops @n@ elements from the head of @xs@, but still runs their
+-- effects.
+--
+-- >>> let list xs = do x <- select xs; liftIO (print (show x)); return x
+-- >>> let sum = fold (+) 0 id
+-- >>> sum (drop 2 (list [5,4,3,2,1]))
+-- "5"
+-- "4"
+-- "3"
+-- "2"
+-- "1"
+-- 6
+drop :: Monad m => Int -> ListT m a -> ListT m a
+drop n l
+    | n <= 0    = l
+    | otherwise = ListT (do
+        s <- next l
+        case s of
+            Cons _ l' -> next (drop (n-1) l')
+            Nil       -> return Nil)
+
+-- | @unfold step seed@ generates a 'ListT' from a @step@ function and an
+-- initial @seed@.
+unfold :: Monad m => (b -> m (Maybe (a, b))) -> b -> ListT m a
+unfold step = loop
+  where
+    loop seed = ListT (do
+        mx <- step seed
+        case mx of
+            Just (x, seed') -> return (Cons x (loop seed'))
+            Nothing         -> return Nil)
+
+-- | @zip xs ys@ zips two 'ListT' together, running the effects of each before
+-- possibly recursing. Notice in the example below, @4@ is output even though
+-- it has no corresponding element in the second list.
+--
+-- >>> let list xs = do x <- select xs; liftIO (print (show x)); return x
+-- >>> runListT (zip (list [1,2,3,4,5]) (list [6,7,8]))
+-- "1"
+-- "6"
+-- "2"
+-- "7"
+-- "3"
+-- "8"
+-- "4"
+zip :: Monad m => ListT m a -> ListT m b -> ListT m (a, b)
+zip xs ys = ListT (do
+    sx <- next xs
+    sy <- next ys
+    case (sx, sy) of
+        (Cons x xs', Cons y ys') -> return (Cons (x, y) (zip xs' ys'))
+        _                        -> return Nil)
+
 
 {-| Pattern match on this type when you loop explicitly over a `ListT` using
     `next`.  For example:
