@@ -201,6 +201,9 @@ import Data.Traversable (Traversable)
 #endif
 import Control.Monad (MonadPlus(..))
 import Control.Monad.Error.Class (MonadError(..))
+#if MIN_VERSION_base(4,9,0)
+import Control.Monad.Fail (MonadFail(..))
+#endif
 import Control.Monad.State.Class (MonadState(..))
 import Control.Monad.Reader.Class (MonadReader(..))
 import Control.Monad.Trans (MonadTrans(..), MonadIO(..))
@@ -270,6 +273,8 @@ instance Monad m => Monad (ListT m) where
             Nil       -> return Nil
             Cons x l' -> next (k x <|> (l' >>= k)) )
 
+    fail _ = mzero
+
 instance Monad m => Alternative (ListT m) where
     empty = ListT (return Nil)
 
@@ -283,6 +288,11 @@ instance Monad m => MonadPlus (ListT m) where
     mzero = empty
 
     mplus = (<|>)
+
+#if MIN_VERSION_base(4,9,0)
+instance Monad m => MonadFail (ListT m) where
+    fail _ = mzero
+#endif
 
 instance (Monad m, Monoid a) => Monoid (ListT m a) where
     mempty  = pure mempty
