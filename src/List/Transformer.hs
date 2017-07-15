@@ -167,6 +167,14 @@
     Whichever one you prefer, all three variations still stream in constant
     space (unlike @"Control.Monad".`mapM`@, which buffers the entire output
     list before returning a single element).
+
+    This library is designed to stream results in constant space and does not
+    expose an obvious way to collect all the results into memory.  As a rule of
+    thumb if you think you need to collect all the results in memory try to
+    instead see if you can consume the results as they are being generated (such
+    as in all the above examples).  If you can stream the data from start to
+    finish then your code will use significantly less memory and your program
+    will become more responsive.
 -}
 module List.Transformer
     ( -- * ListT
