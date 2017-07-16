@@ -1,4 +1,4 @@
-# `list-transformer` v1.0.1
+# `list-transformer` v1.0.2
 
 This library provides a "`ListT` done right implementation" that obeys the
 `Monad` laws.
