@@ -139,7 +139,7 @@
 >     lift (f x)
 >
 > -- Alternatively, using MonadComprehensions:
-> mapM f x = [ r | x <- select xs, r <- lift (f x) ]
+> mapM f xs = [ r | x <- select xs, r <- lift (f x) ]
 
     ... or:
 
@@ -149,7 +149,7 @@
 >     lift (f x)
 >
 > -- Alternatively, using MonadComprehensions:
-> mapM f x = [ r | x <- xs, r <- lift (f x) ]
+> mapM f xs = [ r | x <- xs, r <- lift (f x) ]
 
     ... or:
 
@@ -159,7 +159,7 @@
 >     f x
 >
 > -- Alternatively, using MonadComprehensions:
-> mapM f x = [ r | x <- xs, r <- f x ]
+> mapM f xs = [ r | x <- xs, r <- f x ]
 >
 > -- Alternatively, using a pre-existing operator from "Control.Monad"
 > mapM = (=<<)
