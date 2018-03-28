@@ -200,10 +200,12 @@ module List.Transformer
 
 #if MIN_VERSION_base(4,8,0)
 import Control.Applicative (Alternative(..), liftA2)
+import Data.Semigroup (Semigroup(..))
 #else
 import Control.Applicative (Applicative(..), Alternative(..), liftA2)
 import Data.Foldable (Foldable)
 import Data.Functor ((<$))
+import Data.Semigroup (Semigroup(..))
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable)
 #endif
@@ -301,6 +303,9 @@ instance Monad m => MonadPlus (ListT m) where
 instance Monad m => MonadFail (ListT m) where
     fail _ = mzero
 #endif
+
+instance (Monad m, Semigroup a) => Semigroup (ListT m a) where
+    (<>) = liftA2 (<>)
 
 instance (Monad m, Monoid a) => Monoid (ListT m a) where
     mempty  = pure mempty
