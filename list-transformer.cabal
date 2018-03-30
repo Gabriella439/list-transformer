@@ -26,7 +26,7 @@ library
                      , mtl >= 2.1 && < 2.3
   if !impl(ghc >= 8.0)
     build-depends:     semigroups == 0.18.*
-  ghc-options:         -Wall
+  ghc-options:         -Wall -Wcompat
 
 test-suite doctest
   type: exitcode-stdio-1.0

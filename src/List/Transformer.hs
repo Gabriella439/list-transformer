@@ -200,12 +200,10 @@ module List.Transformer
 
 #if MIN_VERSION_base(4,8,0)
 import Control.Applicative (Alternative(..), liftA2)
-import Data.Semigroup (Semigroup(..))
 #else
 import Control.Applicative (Applicative(..), Alternative(..), liftA2)
 import Data.Foldable (Foldable)
 import Data.Functor ((<$))
-import Data.Semigroup (Semigroup(..))
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable)
 #endif
@@ -217,6 +215,7 @@ import Control.Monad.Fail (MonadFail(..))
 import Control.Monad.State.Class (MonadState(..))
 import Control.Monad.Reader.Class (MonadReader(..))
 import Control.Monad.Trans (MonadTrans(..), MonadIO(..))
+import Data.Semigroup (Semigroup(..))
 import Prelude hiding (drop, pred, take, takeWhile, zip)
 
 import qualified Data.Foldable
@@ -304,12 +303,15 @@ instance Monad m => MonadFail (ListT m) where
     fail _ = mzero
 #endif
 
-instance (Monad m, Semigroup a) => Semigroup (ListT m a) where
+instance (Monad m, Data.Semigroup.Semigroup a) => Data.Semigroup.Semigroup (ListT m a) where
     (<>) = liftA2 (<>)
 
-instance (Monad m, Monoid a) => Monoid (ListT m a) where
+instance (Monad m, Data.Semigroup.Semigroup a, Monoid a) => Monoid (ListT m a) where
     mempty  = pure mempty
-    mappend = liftA2 mappend
+
+#if !(MIN_VERSION_base(4,11,0))
+    mappend = (<>)
+#endif
 
 instance MonadIO m => MonadIO (ListT m) where
     liftIO m = lift (liftIO m)
