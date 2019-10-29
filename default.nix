@@ -1,7 +1,7 @@
 { mkDerivation, base, doctest, mtl, stdenv }:
 mkDerivation {
   pname = "list-transformer";
-  version = "1.0.5";
+  version = "1.0.6";
   src = ./.;
   libraryHaskellDepends = [ base mtl ];
   testHaskellDepends = [ base doctest ];
