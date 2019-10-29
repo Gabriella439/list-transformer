@@ -1,10 +1,11 @@
-{-# LANGUAGE BangPatterns          #-}
-{-# LANGUAGE CPP                   #-}
-{-# LANGUAGE DeriveFoldable        #-}
-{-# LANGUAGE DeriveTraversable     #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE BangPatterns               #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 {-| The `ListT` type is like a list that lets you interleave effects between
     each element of the list.  The type's definition is very short:
@@ -191,6 +192,9 @@ module List.Transformer
 
       -- * Step
     , Step(..)
+
+      -- * Alternative instances
+    , ZipListT(..)
 
       -- * Re-exports
     , MonadTrans(..)
@@ -562,3 +566,46 @@ data Step m a = Cons a (ListT m a) | Nil
 instance Monad m => Functor (Step m) where
     fmap _  Nil       = Nil
     fmap k (Cons x l) = Cons (k x) (fmap k l)
+
+-- | Similar to 'ZipList' in /base/: a newtype wrapper over 'ListT' that
+-- overrides its normal 'Applicative' instance (combine every combination)
+-- with one that "zips" outputs together one at a time.
+--
+-- >>> let xs = do x <- select [1,2,3,4]; liftIO (print x)
+-- >>> let ys = do y <- select [5,6]; liftIO (print y)
+-- >>> runListT (xs *> ys)
+-- "1"
+-- "5"
+-- "6"
+-- "2"
+-- "5"
+-- "6"
+-- "3"
+-- "5"
+-- "6"
+-- "4"
+-- "5"
+-- "6"
+-- >>> runListT (getZipListT (ZipListT xs *> ZipListT ys))
+-- "1"
+-- "4"
+-- "2"
+-- "5"
+-- "3"
+--
+-- Note that the final "3" is printed even though it isn't paired with
+-- anything.
+--
+-- While this can be used to do zipping, it is usually more convenient to
+-- just use 'zip'.  This is more useful if you are working with a function
+-- that expects "an Applicative instance", written to be polymorphic over
+-- all Applicatives.
+newtype ZipListT m a = ZipListT { getZipListT :: ListT m a }
+  deriving (Functor, Alternative, Foldable, Traversable, MonadTrans, Floating, Fractional, Num, Semigroup, Monoid)
+
+instance Monad m => Applicative (ZipListT m) where
+    pure x = ZipListT go
+      where
+        go = ListT (pure (Cons x go))
+    ZipListT fs <*> ZipListT xs = ZipListT (fmap (uncurry ($)) (zip fs xs))
+
