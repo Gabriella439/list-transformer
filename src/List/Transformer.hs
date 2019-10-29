@@ -209,7 +209,7 @@ import Data.Traversable (Traversable)
 #endif
 import Control.Monad (MonadPlus(..))
 import Control.Monad.Error.Class (MonadError(..))
-#if MIN_VERSION_base(4,9,0)
+#if MIN_VERSION_base(4,9,0) && !(MIN_VERSION_base(4,13,0))
 import Control.Monad.Fail (MonadFail(..))
 #endif
 import Control.Monad.State.Class (MonadState(..))
@@ -282,7 +282,9 @@ instance Monad m => Monad (ListT m) where
             Nil       -> return Nil
             Cons x l' -> next (k x <|> (l' >>= k)) )
 
+#if !(MIN_VERSION_base(4,13,0))
     fail _ = mzero
+#endif
 
 instance Monad m => Alternative (ListT m) where
     empty = ListT (return Nil)
