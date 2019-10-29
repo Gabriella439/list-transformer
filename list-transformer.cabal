@@ -1,5 +1,5 @@
 name:                list-transformer
-version:             1.0.5
+version:             1.0.6
 synopsis:            List monad transformer
 description:         This library provides a list monad transformer that
                      enriches lists with effects and streams efficiently in
