@@ -574,24 +574,24 @@ instance Monad m => Functor (Step m) where
 -- >>> let xs = do x <- select [1,2,3,4]; liftIO (print x)
 -- >>> let ys = do y <- select [5,6]; liftIO (print y)
 -- >>> runListT (xs *> ys)
--- "1"
--- "5"
--- "6"
--- "2"
--- "5"
--- "6"
--- "3"
--- "5"
--- "6"
--- "4"
--- "5"
--- "6"
+-- 1
+-- 5
+-- 6
+-- 2
+-- 5
+-- 6
+-- 3
+-- 5
+-- 6
+-- 4
+-- 5
+-- 6
 -- >>> runListT (getZipListT (ZipListT xs *> ZipListT ys))
--- "1"
--- "4"
--- "2"
--- "5"
--- "3"
+-- 1
+-- 5
+-- 2
+-- 6
+-- 3
 --
 -- Note that the final "3" is printed even though it isn't paired with
 -- anything.
