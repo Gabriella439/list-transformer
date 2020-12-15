@@ -186,6 +186,7 @@ module List.Transformer
     , select
     , take
     , drop
+    , dropWhile
     , takeWhile
     , unfold
     , zip
@@ -220,7 +221,7 @@ import Control.Monad.State.Class (MonadState(..))
 import Control.Monad.Reader.Class (MonadReader(..))
 import Control.Monad.Trans (MonadTrans(..), MonadIO(..))
 import Data.Semigroup (Semigroup(..))
-import Prelude hiding (drop, pred, take, takeWhile, zip)
+import Prelude hiding (drop, dropWhile, pred, take, takeWhile, zip)
 
 import qualified Data.Foldable
 
@@ -498,6 +499,27 @@ drop n l
         case s of
             Cons _ l' -> next (drop (n-1) l')
             Nil       -> return Nil)
+
+-- | @dropWhile pred xs@ drops elements from the head of @xs@ if they
+-- satisfy the predicate, but still runs their effects.
+--
+-- >>> let list xs = do x <- select xs; liftIO (print (show x)); return x
+-- >>> let sum = fold (+) 0 id
+-- >>> sum (dropWhile even (list [2,4,5,7,8]))
+-- "2"
+-- "4"
+-- "5"
+-- "7"
+-- "8"
+-- 20
+dropWhile :: Monad m => (a -> Bool) -> ListT m a -> ListT m a
+dropWhile pred l = ListT (do
+    n <- next l
+    case n of
+        Cons x l'
+            | pred x    -> next (dropWhile pred l')
+            | otherwise -> return (Cons x l')
+        Nil             -> return Nil )
 
 -- | @takeWhile pred xs@ takes elements from @xs@ until the predicate @pred@ fails
 --
