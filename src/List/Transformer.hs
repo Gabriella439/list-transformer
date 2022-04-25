@@ -7,19 +7,111 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
-{-| The `ListT` type is like a list that lets you interleave effects between
-    each element of the list.  The type's definition is very short:
+-- | The `ListT` type is like a list that lets you interleave effects between
+--   each element of the list.
+module List.Transformer
+    (
+      -- * Introduction
+      -- $intro
 
-> -- Every `ListT` begins with an outermost effect (the `m`)
-> newtype ListT m a = ListT { next :: m (Step m a) }
->
->
-> -- The return value of that effect is either
-> -- * Cons: a new list element followed by the rest of the list
-> -- * Nil : an empty list
-> data Step m a = Cons a (ListT m a) | Nil
+      -- ** Example: stdin, stdout
+      -- $standardStreams
 
-    You most commonly use this type when you wish to generate each element of
+      -- ** Core operations
+      -- $core
+
+      -- ** Monadic combination
+      -- $monad
+
+      -- ** Exercise: Interaction
+      -- $interaction
+
+      -- * ListT
+      ListT(..)
+
+      -- ** Consuming
+      -- $pleaseStream
+    , runListT
+    , fold
+    , foldM
+
+      -- ** Constructing
+      -- $constructing
+    , select
+    , unfold
+
+      -- ** Removing elements
+    , take
+    , drop
+    , dropWhile
+    , takeWhile
+      -- $filter
+
+      -- ** Concatenation
+      -- $concatenation
+
+      -- ** Pairwise combination
+      -- $pairwise
+    , zip
+
+      -- ** Repetition
+      -- $repetition
+
+      -- * Step
+    , Step(..)
+
+      -- * Alternative instances
+    , ZipListT(..)
+
+      -- * Re-exports
+    , MonadTrans(..)
+    , MonadIO(..)
+    , Alternative(..)
+    ) where
+
+#if MIN_VERSION_base(4,8,0)
+import Control.Applicative (Alternative(..), liftA2)
+#else
+import Control.Applicative (Applicative(..), Alternative(..), liftA2)
+import Data.Foldable (Foldable)
+import Data.Functor ((<$))
+import Data.Monoid (Monoid(..))
+import Data.Traversable (Traversable)
+#endif
+import Control.Monad (MonadPlus(..))
+import Control.Monad.Error.Class (MonadError(..))
+#if MIN_VERSION_base(4,9,0) && !(MIN_VERSION_base(4,13,0))
+import Control.Monad.Fail (MonadFail(..))
+#endif
+import Control.Monad.State.Class (MonadState(..))
+import Control.Monad.Reader.Class (MonadReader(..))
+import Control.Monad.Trans (MonadTrans(..), MonadIO(..))
+import Data.Semigroup (Semigroup(..))
+import Prelude hiding (drop, dropWhile, pred, take, takeWhile, zip)
+
+import qualified Data.Foldable
+
+-- $setup
+-- >>> :set -XNoMonomorphismRestriction
+
+{- $intro
+
+The type's definition is very short:
+
+@newtype 'ListT' m a = ListT { next :: m ('Step' m a) }@
+
+    Every `ListT` begins with an outermost effect (the @\'m\'@, commonly 'IO'). The return value of that effect is either:
+
+@data 'Step' m a = Cons a ('ListT' m a) | Nil@
+
+    * Cons: a new list element followed by the rest of the list
+    * Nil : an empty list
+
+-}
+
+{- $standardStreams
+
+    You most commonly use the ListT when you wish to generate each element of
     the list using `IO`.  For example, you can read lines from standard input:
 
 > import List.Transformer
@@ -66,21 +158,9 @@
 > <Ctrl-D>
 > $
 
-    Sometimes we can simplify the code by taking advantage of the fact that the
-    `Monad` instance for `ListT` behaves like a list comprehension:
+-}
 
-> stdout :: ListT IO String -> IO ()
-> stdout strings = runListT (do
->     string <- strings
->     liftIO (putStrLn string) )
-
-    You can read the above code as saying: \"for each @string@ in @strings@,
-    call `putStrLn` on @string@.
-
-    You can even use list comprehension syntax if you enable the
-    @MonadComprehensions@ language extension:
-
-> stdout strings = runListT [ r | str <- strings, r <- liftIO (putStrLn str) ]
+{- $core
 
     The most important operations that you should familiarize yourself with are:
 
@@ -100,133 +180,77 @@
 
 > (<|>) :: ListT IO a -> ListT IO a -> ListT IO a
 
-    * (`>>=`), which powers @do@ notation and @MonadComprehensions@:
+    * (`>>=`), which powers @do@ notation and @MonadComprehensions@
 
 > (>>=) :: ListT IO a -> (a -> ListT IO b) -> ListT IO b
 
-    For example, suppose you want to build a `ListT` with three elements and
-    no effects.  You could just write:
-
-> pure 1 <|> pure 2 <|> pure 3 :: ListT IO Int
-
-    ... although you would probably prefer to use `select` instead:
+    * `select`, which converts a plain list into a `ListT`
 
 > select :: [a] -> ListT IO a
->
-> select [1, 2, 3] :: ListT IO Int
+
+-}
+
+{- $monad
+
+    Sometimes we can simplify the code by taking advantage of the fact that the
+    `Monad` instance for `ListT` behaves like a list comprehension:
+
+> stdout :: ListT IO String -> IO ()
+> stdout strings = runListT (do
+>     string <- strings
+>     liftIO (putStrLn string) )
+
+    You can read the above code as saying: \"for each @string@ in @strings@,
+    call `putStrLn` on @string@."
+
+    You can even use list comprehension syntax if you enable the
+    @MonadComprehensions@ language extension:
+
+> stdout strings = runListT [ r | str <- strings, r <- liftIO (putStrLn str) ]
+
+    There are a few ways we could consider defining a `ListT` analogue to the `mapM`
+    function from `Prelude`, but none are given in this library because they need
+    require only (`>>=`) and some trivial lifting.
+
+> mapM                                :: (a -> IO b)       -> [a]        -> IO [b]
+> ( \f xs -> xs        >>=        f ) :: (a -> ListT IO b) -> ListT IO a -> ListT IO b
+> ( \f xs -> select xs >>= lift . f ) :: (a -> IO b)       -> [a]        -> ListT IO b
+> ( \f xs -> xs        >>= lift . f ) :: (a -> IO b)       -> ListT IO a -> ListT IO b
+
+    A critical difference between `mapM` and `ListT`'s monad is that `ListT` will
+    stream in constant space, whereas `mapM` buffers the entire output list before
+    returning a single element.
+
+-}
+
+{- $interaction
 
     To test your understanding, guess what this code does and then test your
     guess by running the code:
 
-> import List.Transformer
->
-> strings :: ListT IO String
-> strings = do
->     _ <- select (repeat ())
->     liftIO (putStrLn "Say something:")
->     liftIO getLine
->
-> main :: IO ()
-> main = runListT (do
->     string <- pure "Hello, there!" <|> strings
->     liftIO (putStrLn string) )
+@
+import List.Transformer ('ListT', 'runListT', 'liftIO', ('<|>'), 'select')
+import Data.Foldable ('Data.Foldable.asum')
+import Data.List ('Data.List.repeat')
 
-    This library does not provide utilities like `mapM` because there are many
-    possible minor variations on `mapM` that we could write, such as:
+strings :: 'ListT' IO String
+strings = do
+    'select' ('Data.List.repeat' ())
+    'Data.Foldable.asum'
+        [ pure ""
+        , pure "Say something:"
+        , do
+            x <- 'liftIO' getLine
+            return ("You said: " '<|>' x)
+        ]
 
-> mapM :: Monad m => (a -> m b) -> [a] -> ListT m b
-> mapM f xs = do
->     x <- select xs
->     lift (f x)
->
-> -- Alternatively, using MonadComprehensions:
-> mapM f xs = [ r | x <- select xs, r <- lift (f x) ]
+main :: IO ()
+main = 'runListT' (do
+    string \<- pure "Hello, there!" '<|>' strings
+    'liftIO' (putStrLn string) )
+@
 
-    ... or:
-
-> mapM :: Monad m => (a -> m b) -> ListT m a -> ListT m b
-> mapM f xs = do
->     x <- xs
->     lift (f x)
->
-> -- Alternatively, using MonadComprehensions:
-> mapM f xs = [ r | x <- xs, r <- lift (f x) ]
-
-    ... or:
-
-> mapM :: Monad m => (a -> ListT m b) -> ListT m a -> ListT m b
-> mapM f xs = do
->     x <- xs
->     f x
->
-> -- Alternatively, using MonadComprehensions:
-> mapM f xs = [ r | x <- xs, r <- f x ]
->
-> -- Alternatively, using a pre-existing operator from "Control.Monad"
-> mapM = (=<<)
-
-    Whichever one you prefer, all three variations still stream in constant
-    space (unlike @"Control.Monad".`mapM`@, which buffers the entire output
-    list before returning a single element).
-
-    This library is designed to stream results in constant space and does not
-    expose an obvious way to collect all the results into memory.  As a rule of
-    thumb if you think you need to collect all the results in memory try to
-    instead see if you can consume the results as they are being generated (such
-    as in all the above examples).  If you can stream the data from start to
-    finish then your code will use significantly less memory and your program
-    will become more responsive.
 -}
-module List.Transformer
-    ( -- * ListT
-      ListT(..)
-    , runListT
-    , fold
-    , foldM
-    , select
-    , take
-    , drop
-    , dropWhile
-    , takeWhile
-    , unfold
-    , zip
-
-      -- * Step
-    , Step(..)
-
-      -- * Alternative instances
-    , ZipListT(..)
-
-      -- * Re-exports
-    , MonadTrans(..)
-    , MonadIO(..)
-    , Alternative(..)
-    ) where
-
-#if MIN_VERSION_base(4,8,0)
-import Control.Applicative (Alternative(..), liftA2)
-#else
-import Control.Applicative (Applicative(..), Alternative(..), liftA2)
-import Data.Foldable (Foldable)
-import Data.Functor ((<$))
-import Data.Monoid (Monoid(..))
-import Data.Traversable (Traversable)
-#endif
-import Control.Monad (MonadPlus(..))
-import Control.Monad.Error.Class (MonadError(..))
-#if MIN_VERSION_base(4,9,0) && !(MIN_VERSION_base(4,13,0))
-import Control.Monad.Fail (MonadFail(..))
-#endif
-import Control.Monad.State.Class (MonadState(..))
-import Control.Monad.Reader.Class (MonadReader(..))
-import Control.Monad.Trans (MonadTrans(..), MonadIO(..))
-import Data.Semigroup (Semigroup(..))
-import Prelude hiding (drop, dropWhile, pred, take, takeWhile, zip)
-
-import qualified Data.Foldable
-
--- $setup
--- >>> :set -XNoMonomorphismRestriction
 
 {-| This is like a list except that you can interleave effects between each list
     element.  For example:
@@ -416,6 +440,9 @@ runListT (ListT m) = do
     ... but you can also use the `fold` function directly:
 
 > fold (+) 0 id :: Num a => ListT m a -> m a
+
+>>> fold (<>) "" id (select ["a", "b", "c", "d", "e"])
+"abcde"
 -}
 fold :: Monad m => (x -> a -> x) -> x -> (x -> b) -> ListT m a -> m b
 fold step begin done l = go begin l
@@ -448,6 +475,36 @@ foldM step begin done l0 = do
                 x' <- step x a
                 go x' l'
             Nil       -> done x
+
+{- $pleaseStream
+
+    This library is designed to stream results in constant space and does not
+    expose an obvious way to collect all the results into memory.  As a rule of
+    thumb if you think you need to collect all the results in memory try to
+    instead see if you can consume the results as they are being generated (such
+    as in all the above examples).  If you can stream the data from start to
+    finish then your code will use significantly less memory and your program
+    will become more responsive.
+
+-}
+
+{- $constructing
+
+    `empty` is the empty list with no effects.
+
+    Use `pure`/`return` to construct a singleton list with no effects. Use `liftIO`
+    to turn an effect into a singleton list whose sole element is the effect's result.
+
+    Suppose you want to build a `ListT` with three elements and no effects.
+    You could write:
+
+> pure 1 <|> pure 2 <|> pure 3 :: ListT IO Int
+
+    ... although you would probably prefer to use `select` instead:
+
+> select [1, 2, 3] :: ListT IO Int
+
+-}
 
 {-| Convert any collection that implements `Foldable` to another collection that
     implements `Alternative`
@@ -536,6 +593,135 @@ takeWhile pred l = ListT (do
     case n of
         Cons x l' | pred x -> return (Cons x (takeWhile pred l'))
         _                  -> return Nil )
+
+{- $filter
+
+To filter elements from a list based on a predicate, use `Control.Monad.guard`.
+For example, the following function is analogous to `Data.List.filter`:
+
+> filter :: Monad m => (a -> m Bool) -> ListT m a -> ListT m a
+> filter pred as = do
+>     a <- as
+>     b <- lift (pred a)
+>     guard b
+>     return a
+
+-}
+
+{- $concatenation
+
+    Use (`<|>`) to concatenate two lists.
+
+    > (<|>) :: ListT IO a -> ListT IO a -> ListT IO a
+
+    Use `Data.Foldable.asum` to flatten a list of lists.
+
+    > asum :: [ListT IO a] -> ListT IO a
+
+    Use `Control.Monad.join` to flatten a `ListT` of `ListT`s.
+
+    > join :: ListT IO (ListT IO a) -> ListT IO a
+
+-}
+
+{- $pairwise
+
+    The (`<>`) operation joins every combination of an element from one list with
+    an element from the other.
+
+>>> runListT ( (select ["a", "b"] <> select ["1", "2", "3"]) >>= (liftIO . print) )
+"a1"
+"a2"
+"a3"
+"b1"
+"b2"
+"b3"
+
+    This is the same combinatorial effect that (`>>=`) produces.
+
+>>> runListT (do x <- select ["a", "b"]; y <- select ["1", "2", "3"]; liftIO (print (x <> y)))
+"a1"
+"a2"
+"a3"
+"b1"
+"b2"
+"b3"
+
+-}
+
+{- $repetition
+
+Unbounded repetition can be induced using @'select' ('Data.List.repeat' ())@.
+For example, here are four functions analogous to 'Data.List.cycle':
+
+> cycle1 :: Monad m => a -> ListT m a
+> cycle1 a = do
+>     select (Data.List.repeat ())
+>     return a
+
+> cycle2 :: Monad m => [a] -> ListT m a
+> cycle2 as = do
+>     select (Data.List.repeat ())
+>     select as
+
+> cycle3 :: Monad m => m a -> ListT m a
+> cycle3 m = do
+>     select (Data.List.repeat ())
+>     lift m
+
+> cycle4 :: Monad m => [m a] -> ListT m a
+> cycle4 ms = do
+>     select (Data.List.repeat ())
+>     m <- select ms
+>     lift m
+
+> cycle5 :: Monad m => ListT m a -> ListT m a
+> cycle5 x = do
+>     select (Data.List.repeat ())
+>     x
+
+> cycle6 :: Monad m => [ListT m a] -> ListT m a
+> cycle6 lists = do
+>     select (Data.List.repeat ())
+>     x <- select lists
+>     x
+
+In a similar manner, we can use 'Data.List.replicate' as the initial selection
+to achieve bounded repetition:
+
+> replicate1 :: Monad m => Int -> a -> ListT m a
+> replicate1 n a = do
+>     select (Data.List.replicate n ())
+>     return a
+
+> replicate2 :: Monad m => Int -> [a] -> ListT m a
+> replicate2 n as = do
+>     select (Data.List.replicate n ())
+>     select as
+
+> replicate3 :: Monad m => Int -> m a -> ListT m a
+> replicate3 n m = do
+>     select (Data.List.replicate n ())
+>     lift m
+
+> replicate4 :: Monad m => Int -> [m a] -> ListT m a
+> replicate4 n ms = do
+>     select (Data.List.replicate n ())
+>     m <- select ms
+>     lift m
+
+> replicate5 :: Monad m => Int -> ListT m a -> ListT m a
+> replicate5 n x = do
+>     select (Data.List.replicate n ())
+>     x
+
+> replicate6 :: Monad m => Int -> [ListT m a] -> ListT m a
+> replicate6 n lists = do
+>     select (Data.List.replicate n ())
+>     x <- select lists
+>     x
+
+-}
 
 -- | @unfold step seed@ generates a 'ListT' from a @step@ function and an
 -- initial @seed@.
@@ -630,4 +816,3 @@ instance Monad m => Applicative (ZipListT m) where
       where
         go = ListT (pure (Cons x go))
     ZipListT fs <*> ZipListT xs = ZipListT (fmap (uncurry ($)) (zip fs xs))
-
