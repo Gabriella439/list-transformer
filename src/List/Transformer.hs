@@ -652,7 +652,7 @@ For example, the following function is analogous to `Data.List.filter`:
 {- $repetition
 
 Unbounded repetition can be induced using @'select' ('Data.List.repeat' ())@.
-For example, here are four functions analogous to 'Data.List.cycle':
+For example, here are several functions analogous to 'Data.List.cycle':
 
 > cycle1 :: Monad m => a -> ListT m a
 > cycle1 a = do
