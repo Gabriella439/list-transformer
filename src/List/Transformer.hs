@@ -67,6 +67,7 @@ module List.Transformer
     , MonadTrans(..)
     , MonadIO(..)
     , Alternative(..)
+    , MFunctor (..)
     ) where
 
 #if MIN_VERSION_base(4,8,0)
@@ -83,6 +84,7 @@ import Control.Monad.Error.Class (MonadError(..))
 #if MIN_VERSION_base(4,9,0) && !(MIN_VERSION_base(4,13,0))
 import Control.Monad.Fail (MonadFail(..))
 #endif
+import Control.Monad.Morph (MFunctor (..))
 import Control.Monad.State.Class (MonadState(..))
 import Control.Monad.Reader.Class (MonadReader(..))
 import Control.Monad.Trans (MonadTrans(..), MonadIO(..))
@@ -369,6 +371,9 @@ instance MonadState s m => MonadState s (ListT m) where
     put x = lift (put x)
 
     state k = lift (state k)
+
+instance MFunctor ListT where
+    hoist f xs = ListT (f (fmap (hoist f) (next xs)))
 
 instance (Monad m, Num a) => Num (ListT m a) where
     fromInteger n = pure (fromInteger n)
@@ -774,6 +779,10 @@ data Step m a = Cons a (ListT m a) | Nil
 instance Monad m => Functor (Step m) where
     fmap _  Nil       = Nil
     fmap k (Cons x l) = Cons (k x) (fmap k l)
+
+instance MFunctor Step where
+    hoist _ Nil         = Nil
+    hoist f (Cons x xs) = Cons x (hoist f xs)
 
 -- | Similar to 'ZipList' in /base/: a newtype wrapper over 'ListT' that
 -- overrides its normal 'Applicative' instance (combine every combination)
