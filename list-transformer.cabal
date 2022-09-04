@@ -8,12 +8,12 @@ description:         This library provides a list monad transformer that
                      This library also has an extensive tutorial in the
                      "List.Transformer" module which explains the motivation
                      behind this type and how to use the type fluently.
-homepage:            https://github.com/Gabriel439/Haskell-List-Transformer-Library
+homepage:            https://github.com/Gabriella439/Haskell-List-Transformer-Library
 license:             BSD3
 license-file:        LICENSE
-author:              Gabriel Gonzalez
-maintainer:          Gabriel439@gmail.com
-copyright:           2016 Gabriel Gonzalez
+author:              Gabriella Gonzalez
+maintainer:          GenuineGabriella@gmail.com
+copyright:           2016 Gabriella Gonzalez
 category:            Control
 build-type:          Simple
 cabal-version:       >=1.10
