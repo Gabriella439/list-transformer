@@ -818,7 +818,7 @@ instance MFunctor Step where
 -- that expects "an Applicative instance", written to be polymorphic over
 -- all Applicatives.
 newtype ZipListT m a = ZipListT { getZipListT :: ListT m a }
-  deriving (Functor, Alternative, Foldable, Traversable, MonadTrans, Floating, Fractional, Num, Semigroup, Monoid)
+  deriving (Functor, Alternative, Foldable, Traversable, Floating, Fractional, Num, Semigroup, Monoid)
 
 instance Monad m => Applicative (ZipListT m) where
     pure x = ZipListT go
