@@ -1,5 +1,5 @@
 name:                list-transformer
-version:             1.0.9
+version:             1.1.0
 synopsis:            List monad transformer
 description:         This library provides a list monad transformer that
                      enriches lists with effects and streams efficiently in
@@ -17,6 +17,7 @@ copyright:           2016 Gabriella Gonzalez
 category:            Control
 build-type:          Simple
 cabal-version:       >=1.10
+extra-source-files:  CHANGELOG.md
 
 library
   hs-source-dirs:      src
