@@ -373,7 +373,11 @@ instance MonadState s m => MonadState s (ListT m) where
     state k = lift (state k)
 
 instance MFunctor ListT where
+#if MIN_VERSION_base(4,8,0)
     hoist f xs = ListT (f (fmap (hoist f) (next xs)))
+#else
+    hoist f xs = ListT (f (next xs >>= \x -> return (hoist f x)))
+#endif
 
 instance (Monad m, Num a) => Num (ListT m a) where
     fromInteger n = pure (fromInteger n)
@@ -823,5 +827,9 @@ newtype ZipListT m a = ZipListT { getZipListT :: ListT m a }
 instance Monad m => Applicative (ZipListT m) where
     pure x = ZipListT go
       where
+#if MIN_VERSION_base(4,8,0)
         go = ListT (pure (Cons x go))
+#else
+        go = ListT (return (Cons x go))
+#endif
     ZipListT fs <*> ZipListT xs = ZipListT (fmap (uncurry ($)) (zip fs xs))
