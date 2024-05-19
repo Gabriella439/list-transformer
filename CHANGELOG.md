@@ -1,3 +1,7 @@
+1.1.1
+
+- Support older versions of `base`
+
 1.1.0:
 
 - BREAKING CHANGE: Remove `MonadTrans` instance for `ZipListT`
